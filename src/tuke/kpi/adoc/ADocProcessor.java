@@ -54,7 +54,9 @@ public class ADocProcessor extends AbstractProcessor {
             }
 
             for (Element element : this.compiledDocumentation.keySet()) {
-                this.emit.emitDocumentationFor(element, this.compiledDocumentation.get(element));
+                System.out.println(">>  " + element);
+                System.out.println(">>> " + this.compiledDocumentation.get(element));
+                //this.emit.emitDocumentationFor(element, this.compiledDocumentation.get(element));
             }
         }
         return false;
@@ -91,8 +93,8 @@ public class ADocProcessor extends AbstractProcessor {
                 //throw new RuntimeException("Nenasla sa anotacia kde mala byt.");
             }
         } else {
-            System.out.println("Skipping annotation type " + annotationType.getQualifiedName().toString()
-                    + " since there is not a haskell file for it.");
+            System.out.println("Generating .hs template for annotation type " + annotationType.getQualifiedName().toString()
+                    + ".");
         }
     }
 }

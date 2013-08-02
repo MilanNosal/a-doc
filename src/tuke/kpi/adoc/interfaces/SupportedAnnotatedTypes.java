@@ -8,6 +8,7 @@ import javax.lang.model.element.ElementKind;
  * Pre zistenie podporovanych typov.
  * @author Milan
  */
+// TODO: pridat parameter, checknut ze ako sa to sprava pri enum constant
 public class SupportedAnnotatedTypes {
     public static final Set<ElementKind> supportedKinds;
     

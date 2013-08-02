@@ -1,12 +1,9 @@
 package tuke.kpi.adoc.impl;
 
 import java.io.File;
-import java.util.HashSet;
-import java.util.Set;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
-import tuke.kpi.adoc.interfaces.SupportedAnnotatedTypes;
 
 /**
  * Hlada subory pre html v javadocu.

@@ -1,13 +1,11 @@
 package tuke.kpi.adoc.impl;
 
 import java.io.BufferedReader;
-import java.io.BufferedWriter;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,21 +20,17 @@ import javax.lang.model.util.Elements;
 import tuke.kpi.adoc.interfaces.DocumentationProducer;
 
 /**
- * Lifecycle:
- * create
- * init (nastavi a spusti proces)
- * {
- *      setType (nastavi prave spracovavany typ)
- *          {
- *              instantiateFor (spracuje jednu anotaciu nastaveneho typu)
- *          }*
- * }*
- * finish
+ * Lifecycle: create init (nastavi a spusti proces) { setType (nastavi prave
+ * spracovavany typ) { instantiateFor (spracuje jednu anotaciu nastaveneho typu)
+ * }* }* finish
+ *
  * @author Milan
  */
 public class HaskellProducer implements DocumentationProducer {
-    private Elements elementUtils;
     
+    // TODO: trebalo by prejst tuto triedu a psotarat sa o cleanup poriadne
+
+    private Elements elementUtils;
     private PrintStream ghciInput;
     private BufferedReader ghciOutput;
     private BufferedReader ghciErrorOutput;
@@ -81,15 +75,20 @@ public class HaskellProducer implements DocumentationProducer {
     // setting type
     public boolean setAnnotationType(TypeElement type) {
         String name = type.getSimpleName().toString().toLowerCase();
-        if(!haskellFileExists(name)) {
-            return false;
-        }
+
         try {
+            if (!haskellFileExists(name)) {
+                PrintStream ps = new PrintStream(new File(this.pathToTemplates, name + ".hs"));
+                ps.print(HaskellUtilities.generateHaskellPrototype(type));
+                ps.flush();
+                ps.close();
+                return false;
+            }
             if (type.equals(currentType)) {
                 return true;
             }
             currentType = type;
-            
+
             ghciInput.println(":load " + name);
             ghciInput.flush();
 
@@ -99,10 +98,11 @@ public class HaskellProducer implements DocumentationProducer {
                 System.out.println("GHCi output:: " + output);
             }
             if (!output.contains("Ok, modules loaded")) {
-                throw new RuntimeException("Error while loading a " + name);
+                cleanup();
+                throw new RuntimeException("Error while loading a " + name + ".hs, haskell file is probably not OK.");
             }
             return true;
-        } catch (IOException ex) {
+        } catch (IOException | InterruptedException ex) {
             ex.printStackTrace();
             return false;
         }
@@ -110,7 +110,7 @@ public class HaskellProducer implements DocumentationProducer {
 
     @Override
     public String produceDocFor(AnnotationMirror mirror, Element element) {
-        if(currentType == null) {
+        if (currentType == null) {
             throw new RuntimeException("Current type is not set!");
         }
         try {
@@ -122,18 +122,16 @@ public class HaskellProducer implements DocumentationProducer {
             String name = currentType.getSimpleName().toString().toLowerCase();
             StringBuilder command = new StringBuilder(name);
 
+            // toto je string pre nazov oanotovaneho elementu
             command.append(" ").append(HaskellUtilities.getValue(element.toString().replace(",", ", ")));
-
-            TypeElement annotationType = (TypeElement) mirror.getAnnotationType().asElement();
-            List<? extends Element> annotationParameters = annotationType.getEnclosedElements();
 
             Map<? extends ExecutableElement, ? extends AnnotationValue> actualParameters = elementUtils.getElementValuesWithDefaults(mirror);
 
             AnnotationValue annotationValue;
-            for (Element annotationParameter : annotationParameters) {
+            for (Element annotationParameter : this.currentType.getEnclosedElements()) {
                 if (annotationParameter.getKind() != ElementKind.METHOD) {
                     System.err.println("Member " + annotationParameter + " in annotation type " + name + " is not a method.");
-                    break;
+                    continue;
                 }
                 annotationValue = actualParameters.get((ExecutableElement) annotationParameter);
                 command.append(" ").append(HaskellUtilities.getValue(annotationValue.getValue()));
@@ -176,10 +174,8 @@ public class HaskellProducer implements DocumentationProducer {
                 output = ghciErrorOutput.readLine();
             }
 
-            ghciInput.close();
-            ghciOutput.close();
-            ghciErrorOutput.close();
-            ghciProcess.waitFor();
+            cleanup();
+            
             System.out.println("===========================================================\n");
 
             //p.destroy();
@@ -187,10 +183,17 @@ public class HaskellProducer implements DocumentationProducer {
             exc.printStackTrace();
         }
     }
-    
+
+    private void cleanup() throws IOException, InterruptedException {
+        ghciInput.close();
+        ghciOutput.close();
+        ghciErrorOutput.close();
+        ghciProcess.waitFor();
+    }
+
     private boolean haskellFileExists(String filename) {
         File[] files = this.pathToTemplates.listFiles();
-        for(File file : files) {
+        for (File file : files) {
             if (file.getName().equalsIgnoreCase(filename + ".hs")) {
                 return true;
             }
