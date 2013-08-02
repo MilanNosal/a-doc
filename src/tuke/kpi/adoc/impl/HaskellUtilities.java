@@ -1,9 +1,23 @@
 package tuke.kpi.adoc.impl;
 
+import java.util.List;
+import javax.annotation.processing.ProcessingEnvironment;
+import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.element.AnnotationValue;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.type.ArrayType;
+import static javax.lang.model.type.TypeKind.ARRAY;
+import static javax.lang.model.type.TypeKind.BOOLEAN;
+import static javax.lang.model.type.TypeKind.CHAR;
+import static javax.lang.model.type.TypeKind.DECLARED;
+import static javax.lang.model.type.TypeKind.DOUBLE;
+import static javax.lang.model.type.TypeKind.FLOAT;
+import static javax.lang.model.type.TypeKind.INT;
+import static javax.lang.model.type.TypeKind.LONG;
+import static javax.lang.model.type.TypeKind.SHORT;
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -11,51 +25,81 @@ import javax.lang.model.type.TypeMirror;
  * @author Milan
  */
 public class HaskellUtilities {
+    private ProcessingEnvironment procEnv;
+    
+    public HaskellUtilities (ProcessingEnvironment procEnv) {
+        this.procEnv = procEnv;
+    }
+    
     /**
      * V podstate konverter z Javy do Haskellu.
      * @param value
      * @return 
      */
-    public static String getValue(Object value) {
-        if (value instanceof Integer) {
-            return Integer.toString((Integer) value);
+    public String getValue(Object value, TypeMirror type) {
+        switch (type.getKind()){
+            case INT: {
+                return Integer.toString((Integer) value);
+            }
+            case BOOLEAN: {
+                return ((Boolean) value).booleanValue() ? "True" : "False";
+            }
+            case DECLARED: {
+                if (type.toString().equals("java.lang.String")) {
+                    return String.format("\"%s\"", value);
+                }
+                
+                Element element = procEnv.getTypeUtils().asElement(type);
+                if(element.getKind() == ElementKind.ENUM) {
+                    return value.toString();
+                }
+                
+                throw new RuntimeException("Unsupported parameter type of annotation type " + type);
+            }
+            case CHAR: {
+                return String.format("'%s'", value);
+            }
+            case FLOAT: {
+                return Float.toString((Float) value);
+            }
+            case DOUBLE: {
+                return Double.toString((Double) value);
+            }
+            case LONG: {
+                return Long.toString((Long) value);
+            }
+            case SHORT: {
+                return Short.toString((Short) value);
+            }
+            case ARRAY: {
+                ArrayType array = (ArrayType) type;
+                StringBuilder builder = new StringBuilder("[");
+                List<? extends AnnotationValue> components = (List) value;
+                for (int i = 0; i < components.size(); i++) {
+                    builder.append(getValue(components.get(i).getValue(), array.getComponentType()));
+                    if(i < (components.size() - 1)) {
+                        builder.append(",");
+                    }
+                }
+                builder.append("]");
+                return builder.toString();
+            }
+            //case 
+            default: {
+                throw new RuntimeException("Unsupported parameter type of annotation type " + type);
+            }
         }
-
-        if (value instanceof Boolean) {
-            return ((Boolean) value).booleanValue() ? "True" : "False";
-        }
-
-        if (value instanceof String) {
-            return String.format("\"%s\"", value);
-        }
-
-        if (value instanceof Character) {
-            return String.format("'%s'", value);
-        }
-        
-        if (value instanceof Float) {
-            return Float.toString((Float) value);
-        }
-        
-        if (value instanceof Double) {
-            return Double.toString((Double) value);
-        }
-
-        if (value instanceof Long) {
-            return Long.toString((Long) value);
-        }
-        
-        if (value instanceof Short) {
-            return Short.toString((Short) value);
-        }
-        
-        throw new RuntimeException("Unsupported type of annotation parameter!");
     }
     
-    public static String generateHaskellPrototype (TypeElement annotationType) {
+    public String generateHaskellPrototype (TypeElement annotationType, RoundEnvironment roundEnv) {
         String name = annotationType.getSimpleName().toString().toLowerCase();
-        StringBuilder prototype = new StringBuilder(name);
+        StringBuilder prototype = new StringBuilder(
+                String.format("-- function type prototype for %s, "
+                + "first String argument is a name of annotated element, the result is a documentation fragment for the annotation"
+                + "\n%s", annotationType.getQualifiedName(), name));
         prototype.append(" :: String -> ");
+        
+        StringBuilder datatypes = new StringBuilder();
         
         for(Element annotationParameter : annotationType.getEnclosedElements()) {
             if (annotationParameter.getKind() != ElementKind.METHOD) {
@@ -63,26 +107,29 @@ public class HaskellUtilities {
                 continue;
             }
             ExecutableElement method = (ExecutableElement) annotationParameter;
-            prototype.append(getType(method.getReturnType())).append(" -> ");
+            prototype.append(getType(method.getReturnType(), datatypes)).append(" -> ");
         }
         
         prototype.append(" String\n\n");
         
         // TODO: dotiahnut aj nejaku sablonku jednoduchu
-        prototype.append(name).append(" x0");
+        prototype.append(String.format("-- function prototype, change according to %s's semantics\n"
+                + "%s x0", annotationType.getQualifiedName(), name));
         int index = 1;
         for(Element annotationParameter : annotationType.getEnclosedElements()) {
             if (annotationParameter.getKind() == ElementKind.METHOD) {
                 prototype.append(" x").append(index++);
             }
         }
-        prototype.append(" = \"Dummy documentation fragment.\"\n");
+        prototype.append(" = \"Dummy documentation fragment.\"\n");        
         
-        return prototype.toString();
+        // teraz zretazim udajove typy s prototypom
+        datatypes.append(prototype.toString());
+        
+        return datatypes.toString();
     }
     
-    // TODO: array, enum
-    private static String getType(TypeMirror type) {
+    private String getType(TypeMirror type, StringBuilder datatypes) {
         switch (type.getKind()) {
             case INT: {
                 return "Int";
@@ -94,6 +141,28 @@ public class HaskellUtilities {
                 if (type.toString().equals("java.lang.String")) {
                     return "String";
                 }
+                
+                Element element = procEnv.getTypeUtils().asElement(type);
+                if(element.getKind() == ElementKind.ENUM) {
+                    TypeElement enumeration = (TypeElement) element;
+                    datatypes.append(String.format("-- datatype for enum %s\ndata %s = ", enumeration.getQualifiedName(), enumeration.getSimpleName().toString()));
+                    boolean first = true;
+                    for(Element constant : enumeration.getEnclosedElements()) {
+                        if(constant.getKind() == ElementKind.ENUM_CONSTANT) {
+                            if(first) {
+                                first = false;
+                            } else {
+                                datatypes.append(" | ");
+                            }
+                            datatypes.append(constant.getSimpleName().toString());
+                        } else {
+                            System.err.println("Something unexpecting in enum type " + enumeration.toString() + ", >> " + constant.toString());
+                        }
+                    }
+                    datatypes.append(" deriving (Show)\n\n");
+                    return enumeration.getSimpleName().toString();
+                }
+                
                 throw new RuntimeException("Unsupported parameter type of annotation type " + type);
             }
             case CHAR: {
@@ -106,11 +175,16 @@ public class HaskellUtilities {
                 return "Double";
             }
             case LONG: {
-                return "Int64";
+                return "Integer";
             }
             case SHORT: {
                 return "Int";
             }
+            case ARRAY: {
+                ArrayType array = (ArrayType) type;
+                return String.format("[%s]", getType(array.getComponentType(), datatypes));
+            }
+            //case 
             default: {
                 throw new RuntimeException("Unsupported parameter type of annotation type " + type);
             }

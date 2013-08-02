@@ -38,7 +38,7 @@ public class ADocProcessor extends AbstractProcessor {
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         if (roundEnv.getRootElements().size() > 0) {
             this.haskellExec = new HaskellProducer();
-            this.haskellExec.init(HASKELL_PATH, this.processingEnv.getElementUtils());
+            this.haskellExec.init(HASKELL_PATH, this.processingEnv, roundEnv);
 
             // vyberie anotacie oznacene nasim @Documented
             for (TypeElement annotationType : annotations) {

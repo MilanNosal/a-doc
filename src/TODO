@@ -7,3 +7,4 @@ generovanie hs suborov
 domysliet kompoziciu
 
 problem bude ak nieco sa pobabre, lebo nam ten proces zostane visiet a sme v *****
+nejako nedobre berie uvodzovky, ktore vracia haskell, ako keby ich chcel escapovat
