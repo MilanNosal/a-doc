@@ -22,6 +22,7 @@ import javax.lang.model.type.TypeMirror;
 
 /**
  * dorobit aj generovanie typu a kostry
+ * TODO: urobit aj xyxyxyxyxxyx nieco najviac
  * @author Milan
  */
 public class HaskellUtilities {
@@ -97,7 +98,7 @@ public class HaskellUtilities {
                 String.format("-- function type prototype for %s, "
                 + "first String argument is a name of annotated element, the result is a documentation fragment for the annotation"
                 + "\n%s", annotationType.getQualifiedName(), name));
-        prototype.append(" :: String -> ");
+        prototype.append(" :: String ->");
         
         StringBuilder datatypes = new StringBuilder();
         
@@ -107,18 +108,17 @@ public class HaskellUtilities {
                 continue;
             }
             ExecutableElement method = (ExecutableElement) annotationParameter;
-            prototype.append(getType(method.getReturnType(), datatypes)).append(" -> ");
+            prototype.append(" ").append(getType(method.getReturnType(), datatypes)).append(" ->");
         }
         
         prototype.append(" String\n\n");
         
         // TODO: dotiahnut aj nejaku sablonku jednoduchu
         prototype.append(String.format("-- function prototype, change according to %s's semantics\n"
-                + "%s x0", annotationType.getQualifiedName(), name));
-        int index = 1;
+                + "%s annotatedElement", annotationType.getQualifiedName(), name));
         for(Element annotationParameter : annotationType.getEnclosedElements()) {
             if (annotationParameter.getKind() == ElementKind.METHOD) {
-                prototype.append(" x").append(index++);
+                prototype.append(" ").append(annotationParameter.getSimpleName());
             }
         }
         prototype.append(" = \"Dummy documentation fragment.\"\n");        

@@ -1,8 +1,6 @@
 package tuke.kpi.adoc;
 
 import java.io.File;
-import java.io.IOException;
-import java.lang.annotation.Documented;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -23,11 +21,11 @@ import tuke.kpi.adoc.interfaces.DocumentationEmitter;
 import tuke.kpi.adoc.interfaces.SupportedAnnotatedTypes;
 
 @SupportedSourceVersion(SourceVersion.RELEASE_6)
-@SupportedAnnotationTypes({"*"})
+@SupportedAnnotationTypes(value={"*"})
 public class ADocProcessor extends AbstractProcessor {
-
-    private static final String JAVA_DOC_PATH = "C:\\Users\\milan_000\\Documents\\NetBeansProjects\\ADocTest\\javadoc";
-    private static final String HASKELL_PATH = "C:\\Users\\milan_000\\Documents\\NetBeansProjects\\ADocTest\\src";
+    
+    private static final String JAVA_DOC_PATH = "C:\\Users\\Milan\\Documents\\NetBeansProjects\\ADocTest\\javadoc";
+    private static final String HASKELL_PATH = "C:\\Users\\Milan\\Documents\\NetBeansProjects\\ADocTest\\src";
     private HaskellProducer haskellExec;
     private DocumentationComposer comp = new SimpleComposer();
     private DocumentationEmitter emit = new SimpleJavaDocEmitter(new File(JAVA_DOC_PATH));
@@ -56,7 +54,7 @@ public class ADocProcessor extends AbstractProcessor {
             for (Element element : this.compiledDocumentation.keySet()) {
                 System.out.println(">>  " + element);
                 System.out.println(">>> " + this.compiledDocumentation.get(element));
-                //this.emit.emitDocumentationFor(element, this.compiledDocumentation.get(element));
+                this.emit.emitDocumentationFor(element, this.compiledDocumentation.get(element));
             }
         }
         return false;

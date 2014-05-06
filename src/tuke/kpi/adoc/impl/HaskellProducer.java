@@ -25,6 +25,7 @@ import tuke.kpi.adoc.interfaces.DocumentationProducer;
  * spracovavany typ) { instantiateFor (spracuje jednu anotaciu nastaveneho typu)
  * }* }* finish
  *
+ * TODO: urobit aj xxxx nieco najviac
  * @author Milan
  */
 public class HaskellProducer implements DocumentationProducer {
