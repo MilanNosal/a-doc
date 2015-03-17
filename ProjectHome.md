@@ -1,0 +1,1 @@
+Prototype implementation of the annotation-based documentation phrases. The prototype is written in Java for Java and JavaDoc.
